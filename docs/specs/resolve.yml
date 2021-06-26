@@ -1,0 +1,301 @@
+---
+# Links to files are resolved to relative url
+inputs:
+  docfx.yml:
+  docs/a.md: Link to [b](b.md)
+  docs/b.md: Link to [a](./a.md)
+outputs:
+  docs/a.json: |
+    { "content": "<p>Link to <a href=\"b\">b</a></p>" }
+  docs/b.json: |
+    { "content": "<p>Link to <a href=\"a\">a</a></p>" }
+  build.manifest:
+---
+# Preserve query and fragment for links to files
+inputs:
+  docfx.yml:
+  docs/a.md: Link to [b](b.md#a?b=c)
+  docs/b.md: Link to [a](./a.md?a=b&c=d#e)
+outputs:
+  docs/a.json: |
+    { "content": "<p>Link to <a href=\"b#a?b=c\">b</a></p>" }
+  docs/b.json: |
+    { "content": "<p>Link to <a href=\"a?a=b&amp;c=d#e\">a</a></p>" }
+  build.log: |
+    ["warning","bookmark-not-found","Cannot find bookmark '#e' in 'docs/a.md'","docs/b.md"]
+    ["warning","bookmark-not-found","Cannot find bookmark '#a?b=c' in 'docs/b.md'","docs/a.md"]
+  build.manifest:
+---
+# Links to URLs are preserved as is
+inputs:
+  docfx.yml:
+  docs/a.md: Link to [docs](https://docs.microsoft.com)
+outputs:
+  docs/a.json: |
+    { "content": "<p>Link to <a href=\"https://docs.microsoft.com\">docs</a></p>" }
+  build.manifest:
+---
+# Links to bookmarks in the same article
+inputs:
+  docfx.yml:
+  docs/a.md: |
+    ## Hello World
+    Link to [bookmark](#hello-world)
+  docs/b.md: |
+    Link to [self](./b.md)
+outputs:
+  docs/a.json: |
+    { "content": "<h2 id=\"hello-world\">Hello World</h2><p>Link to <a href=\"#hello-world\">bookmark</a></p>" }
+  docs/b.json: |
+    { "content": "<p>Link to <a href=\"#\">self</a></p>" }
+  build.manifest:
+---
+# Support both / and \ as directory seperator
+inputs:
+  docfx.yml:
+  docs/dir-a/a.md: Link to [b](..\dir-b/b.md)
+  docs/dir-b/b.md: Link to [a](../dir-a\a.md)
+outputs:
+  docs/dir-a/a.json: |
+    { "content": "<p>Link to <a href=\"../dir-b/b\">b</a></p>" }
+  docs/dir-b/b.json: |
+    { "content": "<p>Link to <a href=\"../dir-a/a\">a</a></p>" }
+  build.manifest:
+---
+# Path starting with ~ resolves from docset root directory
+inputs:
+  docfx.yml:
+  docs/dir-a/a.md: Link to [b](~/docs/dir-b/b.md)
+  docs/dir-b/b.md: Link to [a](~docs/dir-a/a.md)
+outputs:
+  docs/dir-a/a.json: |
+    { "content": "<p>Link to <a href=\"../dir-b/b\">b</a></p>" }
+  docs/dir-b/b.json: |
+    { "content": "<p>Link to <a href=\"%7Edocs/dir-a/a.md\">a</a></p>" }
+  build.manifest:
+  build.log: |
+    ["warning","file-not-found","Cannot find file '~docs/dir-a/a.md' relative to 'docs/dir-b/b.md'","docs/dir-b/b.md"]
+---
+# Links in include files are resolved relative to the include file
+inputs:
+  docfx.yml:
+  docs/a.md: Link to [!INCLUDE[](dir/b.md)]
+  docs/dir/b.md: '[c](c.md)'
+  docs/dir/c.md:
+outputs:
+  docs/a.json: |
+    { "content": "<p>Link to <a href=\"dir/c\">c</a></p>" }
+  docs/dir/b.json: |
+    { "content": "<p><a href=\"c\">c</a></p>" }
+  docs/dir/c.json:
+  build.manifest:
+---
+# Resolve <a> and <img> tags embeded inside markdown
+inputs:
+  docfx.yml:
+  docs/a.md: Link to <a href="b.md" target="_blank"><em>b</em></a>
+  docs/b.md: <div>Link to <img src="~/docs/c.png" /></div>
+  docs/c.png:
+outputs:
+  docs/a.json: |
+    { "content": "<p>Link to <a href=\"b\" target=\"_blank\"><em>b</em></a></p>" }
+  docs/b.json: |
+    { "content": "<div>Link to <img src=\"c.png\" /></div>" }
+  docs/c.png:
+  build.manifest:
+---
+# Html links in include files are resolved relative to the include file
+inputs:
+  docfx.yml:
+  docs/a.md: Link to [!INCLUDE[](dir/b.md)]
+  docs/dir/b.md: '<a target="_blank" href="c.md">c</a>'
+  docs/dir/c.md:
+outputs:
+  docs/a.json: |
+    { "content": "<p>Link to <a target=\"_blank\" href=\"dir/c\">c</a></p>" }
+  docs/dir/b.json: |
+    { "content": "<p><a target=\"_blank\" href=\"c\">c</a></p>" }
+  docs/dir/c.json:
+  build.manifest:
+---
+# Show warning if the link is empty, missing or points to absolute file path
+inputs:
+  docfx.yml:
+  docs/a.md: |
+    [Empty]() [Invalid](a<>b.md) [!INCLUDE[](../b.md)]
+  b.md: |
+    [Missing](c.md)
+outputs:
+  docs/a.json: |
+    { "content": "<p><a href=\"\">Empty</a><a href=\"a%3C%3Eb.md\">Invalid</a><a href=\"c.md\">Missing</a></p>" }
+  build.manifest:
+  build.log: |
+    ["info","link-is-empty","Link is empty","docs/a.md"]
+    ["warning","file-not-found","Cannot find file 'a<>b.md' relative to 'docs/a.md'","docs/a.md"]
+    ["warning","file-not-found","Cannot find file 'c.md' relative to 'b.md'","b.md"]
+---
+# Show warning if the link points to absolute file path
+os: windows
+inputs:
+  docfx.yml:
+  docs/a.md: |
+    [Absolute](C:/a.md)
+outputs:
+  docs/a.json: |
+    { "content": "<p><a href=\"C:/a.md\">Absolute</a></p>" }
+  build.manifest:
+  build.log: |
+    ["warning","absolute-file-path","File path cannot be absolute: 'C:/a.md'","docs/a.md"]
+---
+# Show warning if two files share the same site url
+inputs:
+  docfx.yml:
+  docs/a.png.md: '![](a.png)'
+  docs/a.png:
+outputs:
+  build.manifest:
+  build.log: |
+    ["warning","publish-url-conflict","Two or more documents publish to the same url '/docs/a.png': 'docs/a.png', 'docs/a.png.md'"]
+---
+# Prefer relative url to file when there is a matching folder name
+inputs:
+  docfx.yml:
+  docs/a/index.md: Link to [1](../a.md) [2](a.md)
+  docs/a/a.md: Link to [index](index.md)
+  docs/a.md: Link to [index](a/index.md)
+outputs:
+  docs/a/index.json: |
+    { "content": "<p>Link to <a href=\"../a\">1</a> <a href=\"a\">2</a></p>" }
+  docs/a/a.json: |
+    { "content": "<p>Link to <a href=\".\">index</a></p>" }
+  docs/a.json: |
+    { "content": "<p>Link to <a href=\"a/\">index</a></p>" }
+  build.manifest:
+---
+# Escape special charactors in path
+inputs:
+  docfx.yml:
+  docs/a.md: Link to [b](b&/c~.md)
+  docs/b&/c~.md:
+outputs:
+  docs/a.json: |
+    { "content": "<p>Link to <a href=\"b%26/c%7E\">b</a></p>" }
+  docs/b&/c~.json:
+  build.manifest:
+---
+# Files redirected to an aboslute URL
+inputs:
+  docfx.yml: |
+    redirections:
+      docs/redirect.md: /absolute/path
+  docs/a.md: |
+    [redirect](redirect.md?a#b)
+outputs:
+  build.manifest:
+  docs/a.json: |
+    {"content":"<p><a href=\"/absolute/path?a#b\">redirect</a></p>"}
+  docs/redirect.json: |
+    {"redirect_url":"/absolute/path"}
+---
+# Files redirected to a relative URL
+inputs:
+  docfx.yml: |
+    redirections:
+      docs/redirect.md: relative/path
+  docs/a.md: |
+    [redirect](redirect.md)
+outputs:
+  build.manifest:
+  docs/a.json: |
+    {"content":"<p><a href=\"relative/path\">redirect</a></p>"}
+  docs/redirect.json: |
+    {"redirect_url":"relative/path"}
+---
+# Show warning if inclusion is a redirection file
+inputs:
+  docfx.yml: |
+    redirections:
+      docs/redirect.md: /absolute/path
+  docs/a.md: |
+    Link to [!INCLUDE[](redirect.md)]
+outputs:
+  build.manifest:
+  docs/a.json: |
+    {"content":"<p>Link to [!include[](redirect.md)]</p>"}
+  docs/redirect.json: |
+    {"redirect_url":"/absolute/path"}
+  build.log: |
+    ["warning","include-is-redirection","Referenced inclusion redirect.md relative to 'docs/a.md' shouldn't belong to redirections","docs/a.md"]
+    ["warning","include-not-found","Cannot resolve 'redirect.md' relative to 'docs/a.md'.","docs/a.md"]
+---
+# Show warning if redirection file conflicts with existing file
+inputs:
+  docfx.yml: |
+    redirections:
+      docs/redirect.md: /absolute/path
+  docs/redirect.md:
+outputs:
+  build.manifest:
+  build.log: |
+    ["warning","publish-url-conflict","Two or more documents publish to the same url '/docs/redirect': 'docs/redirect.md <redirection>', 'docs/redirect.md'"]
+---
+# Show warning if link to a page outside build scope
+inputs:
+  docfx.yml:
+  docs/a.md: 'Link to [c](../c.md)'
+  docs/b.md: '[!include[](../c.md)]'
+  c.md: '[](#self)'
+outputs:
+  docs/a.json: |
+    {"content":"<p>Link to <a href=\"../c\">c</a></p>"}
+  docs/b.json: |
+    {"content":"<p><a href=\"#self\"></a></p>"}
+  build.log: |
+    ["warning","link-out-of-scope","File 'c.md' referenced by link '../c.md' will not be built because it is not included in docfx.yml","docs/a.md"]
+    ["warning","bookmark-not-found","Cannot find bookmark '#self' in 'c.md'","c.md"]
+  build.manifest:
+---
+# Don't show warning if link to a resource outside build scope
+inputs:
+  docfx.yml:
+  docs/a.md: '[a](../b.png)'
+  b.png:
+outputs:
+  docs/a.json: |
+    {"content":"<p><a href=\"../b.png\">a</a></p>"}
+  b.png:
+  build.manifest:
+---
+# Don't show warning if include a page outside build scope
+inputs:
+  docfx.yml:
+  docs/a.md: '[!include[a](../b.md)]'
+  b.md: b
+outputs:
+  docs/a.json: |
+    {"content":"<p>b</p>"}
+  build.manifest:
+---
+# Show warning if link to a file in dependency repo
+inputs:
+  docfx.yml: |
+    dependencies:
+      dep: https://github.com/docascode/docfx-test-dependencies
+  docs/a.md: 'Link to [dep](~/dep/logo.svg)'
+outputs:
+  docs/a.json: |
+    {"content":"<p>Link to <a href=\"%7E/dep/logo.svg\">dep</a></p>"}
+  build.log: |
+    ["warning","link-is-dependency","File 'logo.svg' referenced by link '~/dep/logo.svg' will not be built because it is from a dependency docset","docs/a.md"]
+  build.manifest:
+---
+# Don't show warning if include a file from dependency repo
+inputs:
+  docfx.yml: |
+    dependencies:
+      dep: https://github.com/docascode/docfx-test-dependencies
+  docs/a.md: '[!include[dep](~/dep/dep.md)]'
+outputs:
+  docs/a.json: |
+    {"content":"<p>DEP</p>"}
+  build.manifest:

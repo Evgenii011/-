@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "fullName": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "uid": {
+      "type": "string"
+    },
+    "xref": {
+      "type": "string"
+    },
+    "data": {
+      "$ref": "#"
+    }
+  }
+}

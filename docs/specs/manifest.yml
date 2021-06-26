@@ -1,0 +1,256 @@
+---
+# Manifest contains files to publish
+inputs:
+  docfx.yml:
+  docs/a.md:
+  docs/TOC.md:
+  docs/folder/b~$.md:
+  docs/index.md:
+outputs:
+  docs/a.json:
+  docs/TOC.json:
+  docs/folder/b~$.json:
+  docs/index.json:
+  build.manifest: |
+    {
+      "files": [
+        { "siteUrl": "/docs/a", "outputPath": "docs/a.json" },
+        { "siteUrl": "/docs/folder/b~$", "outputPath": "docs/folder/b~$.json" },
+        { "siteUrl": "/docs/", "outputPath": "docs/index.json" },
+        { "siteUrl": "/docs/TOC.json", "outputPath": "docs/TOC.json" }
+      ]
+    }
+---
+# Manifest contains sourcePath when copyResources is set to false
+inputs:
+  docfx.yml: |
+    content: '**'
+    output:
+      copyResources: false
+  a.png:
+outputs:
+  build.manifest: |
+    {
+      "files": [
+        { "siteUrl": "/a.png", "sourcePath": "a.png", "!outputPath": "" }
+      ]
+    }
+---
+# Manifest contains Toc dependencies
+inputs:
+  docfx.yml:
+  docs/a.md:
+  docs/TOC.md: |
+    # [file reference](a.md)
+outputs:
+  docs/a.json:
+  docs/TOC.json:
+  build.manifest: |
+    {  
+       "dependencies":{  
+          "docs/TOC.md":[  
+             {  
+                "source":"docs/a.md",
+                "type":"link"
+             }
+          ]
+       }
+    }
+---
+# Manifest contains Inclusion dependencies
+inputs:
+  docfx.yml:
+  docs/a.md: a [!INCLUDE[](b.md)]
+  docs/b.md:
+outputs:
+  docs/a.json:
+  docs/b.json:
+  build.manifest: |
+    {  
+       "dependencies":{  
+          "docs/a.md":[  
+             {  
+                "source":"docs/b.md",
+                "type":"inclusion"
+             }
+          ]
+       }
+    }
+---
+# Manifest contains link dependencies
+inputs:
+  docfx.yml:
+  docs/a.md: Link to [b](b.md)
+  docs/b.md:
+outputs:
+  docs/a.json:
+  docs/b.json:
+  build.manifest: |
+    {  
+       "dependencies":{  
+          "docs/a.md":[  
+             {  
+                "source":"docs/b.md",
+                "type":"link"
+             }
+          ]
+       }
+    }
+---
+# Manifest contains nested token or codesnippet dependencies
+inputs:
+  docfx.yml:
+  docs/a.md: a [!INCLUDE[](b.md)
+  docs/b.md: |
+    Link to [c](c.md)
+    b [!INCLUDE[](c.md)
+  docs/c.md:
+outputs:
+  docs/a.json:
+  docs/b.json:
+  docs/c.json:
+  build.manifest: |
+    {  
+       "dependencies":{  
+          "docs/a.md":[  
+             {  
+                "source":"docs/b.md",
+                "type":"inclusion"
+             }
+          ],
+          "docs/b.md":[  
+             {  
+                "source":"docs/c.md",
+                "type":"link"
+             },
+             {  
+                "source":"docs/c.md",
+                "type":"inclusion"
+             }
+          ]
+       }
+    }
+---
+# Manifest contains nested TOC dependencies
+inputs:
+  docfx.yml:
+  docs/TOC.md: |
+    # [a](a/TOC.md)
+  docs/a/TOC.md: |
+    # [b](b.md)
+  docs/a/b.md:
+outputs:
+  docs/TOC.json:
+  docs/a/b.json:
+  build.manifest: |
+    {  
+       "dependencies":{  
+          "docs/a/TOC.md":[  
+             {  
+                "source":"docs/a/b.md",
+                "type":"link"
+             }
+          ],
+          "docs/TOC.md":[  
+             {  
+                "source":"docs/a/TOC.md",
+                "type":"tocInclusion"
+             }
+          ]
+       }
+    }
+---
+# Manifest inclusion circular reference
+inputs:
+  docfx.yml:
+  docs/a.md: |
+    a [!INCLUDE[](b.md)
+  docs/b.md: |
+    b [!INCLUDE[](a.md)
+outputs:
+  docs/a.json:
+  docs/b.json:
+  build.manifest: |
+    {  
+       "dependencies":{  
+          "docs/a.md":[  
+             {  
+                "source":"docs/b.md",
+                "type":"inclusion"
+             }
+          ],
+          "docs/b.md":[  
+             {  
+                "source":"docs/a.md",
+                "type":"inclusion"
+             }
+          ]
+       }
+    }
+  build.log: |
+    ["warning","circular-reference","Found circular reference: docs/b.md --> docs/a.md --> docs/b.md","docs/b.md"]
+    ["warning","circular-reference","Found circular reference: docs/a.md --> docs/b.md --> docs/a.md","docs/a.md"]
+---
+# Manifest link circular reference
+inputs:
+  docfx.yml:
+  docs/a.md: |
+    Link to [b](b.md)
+    # bookmark
+  docs/b.md: |
+    Link to [a](a.md#bookmark)
+outputs:
+  docs/a.json:
+  docs/b.json:
+  build.manifest: |
+    {  
+       "dependencies":{  
+          "docs/a.md":[  
+             {  
+                "source":"docs/b.md",
+                "type":"link"
+             }
+          ],
+          "docs/b.md":[  
+             {  
+                "source":"docs/a.md",
+                "type":"bookmark"
+             }
+          ]
+       }
+    }
+---
+# Ignores link to self, treat empty bookmark as link
+inputs:
+  docfx.yml:
+  docs/a.md: |
+    # bookmark
+    Link to [a](#bookmark) and [b](b.md#)
+  docs/b.md:
+outputs:
+  docs/a.json:
+  docs/b.json:
+  build.manifest: |
+    {  
+       "dependencies":{  
+          "docs/a.md":[  
+             {  
+                "source":"docs/b.md",
+                "type":"link"
+             }
+          ]
+       }
+    }
+---
+# Manifest does not include files with errors
+inputs:
+  docfx.yml: |
+    rules:
+      link-is-empty: error
+  docs/a.md: |
+    a []()
+outputs:
+  build.manifest: |
+    { files: [] }
+  build.log: |
+    ["error","link-is-empty","Link is empty","docs/a.md"]
